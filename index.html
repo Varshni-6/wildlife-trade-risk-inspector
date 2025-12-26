@@ -115,6 +115,20 @@
             border-color: var(--coffee-medium);
             transition: background var(--transition-speed) ease;
         }
+        /* Coffee-themed outline button */
+        .btn-outline-primary {
+            color: var(--coffee-medium);
+            border-color: var(--coffee-medium);
+            background-color: transparent;
+        }
+
+        .btn-outline-primary:hover,
+        .btn-outline-primary:focus {
+            color: #ffffff;
+            background-color: var(--coffee-medium);
+            border-color: var(--coffee-medium);
+        }
+
 
         .btn-primary:hover {
             background-color: var(--coffee-dark);
@@ -178,6 +192,14 @@
                        placeholder="Search Species (e.g., Python reticulatus)" value="Varanus salvator">
                 <button class="btn btn-primary px-4 fw-bold" onclick="fetchData()">ANALYZE</button>
             </div>
+        </div>
+    </div>
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-6 text-center">
+            <a href="comparison.html"
+                class="btn btn-outline-primary rounded-pill px-4 py-2 fw-semibold">
+                🔍 Compare All 6 Species
+            </a>
         </div>
     </div>
 
