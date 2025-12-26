@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wildlife Risk Inspector</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+
+    <style>
+        /* Coffee & Beige Color Palette */
+        :root {
+            --beige-light: #f5f5f2;
+            --beige-dark: #e8e2d6;
+            --coffee-light: #a6907c;
+            --coffee-medium: #8c7867;
+            --coffee-dark: #594a3e;
+            --accent-sage: #7d8570;
+            --accent-clay: #7d5c5c;
+            --text-main: #3d342d;
+            --transition-speed: 0.3s;
+        }
+
+        body { 
+            background-color: var(--beige-light); 
+            color: var(--text-main);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Hover Effects for Boxes */
+        .card {
+            border: none;
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(89, 74, 62, 0.05);
+            margin-bottom: 20px;
+            border-radius: 12px;
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+            cursor: default;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 24px rgba(89, 74, 62, 0.12);
+        }
+
+        /* Muted Risk Colors */
+        .risk-high { color: #a64444; font-weight: bold; } 
+        .risk-med  { color: #b5836d; font-weight: bold; } 
+        .risk-low  { color: #6b7a5a; font-weight: bold; } 
+
+        #map-container {
+            height: 500px;
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .loader {
+            border: 4px solid var(--beige-dark);
+            border-top: 4px solid var(--coffee-medium);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Heading Banners Styling */
+        .hero-section {
+            background-color: var(--beige-dark);
+            border-radius: 15px;
+            color: white;
+            padding: 70px 40px;
+            margin-bottom: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.6s ease-in-out, transform var(--transition-speed) ease;
+            border: 1px solid rgba(89, 74, 62, 0.1);
+        }
+
+        .hero-section:hover {
+            transform: scale(1.01);
+            box-shadow: 0 8px 20px rgba(89, 74, 62, 0.15);
+        }
+
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(89, 74, 62, 0.3), rgba(58, 48, 40, 0.65));
+            z-index: 0;
+        }
+
+        #speciesImage {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+            display: none;
+            filter: sepia(15%) contrast(95%) brightness(90%);
+        }
+
+        .btn-primary {
+            background-color: var(--coffee-medium);
+            border-color: var(--coffee-medium);
+            transition: background var(--transition-speed) ease;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--coffee-dark);
+            border-color: var(--coffee-dark);
+            transform: translateY(-2px);
+        }
+
+        .form-control {
+            border: 1px solid var(--beige-dark);
+        }
+
+        .form-control:focus {
+            border-color: var(--coffee-medium);
+            box-shadow: 0 0 0 0.2rem rgba(140, 120, 103, 0.15);
+        }
+
+        hr {
+            border-top: 1px solid var(--beige-dark);
+            opacity: 0.6;
+        }
+
+        .text-primary { color: var(--coffee-medium) !important; }
+
+        .footer-link {
+            color: var(--coffee-medium);
+            text-decoration: none;
+            transition: color 0.2s ease;
+            font-weight: 500;
+        }
+
+        .footer-link:hover {
+            color: var(--coffee-dark);
+            text-decoration: underline;
+        }
+
+        #resultsArea {
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container py-5">
+    <header class="text-center mb-5">
+        <h1 class="display-5 fw-light" style="letter-spacing: 2px;">
+            <span style="opacity: 0.6;">🌍</span> Wildlife Trade Risk Inspector
+        </h1>
+        <p class="text-muted small text-uppercase" style="letter-spacing: 3px;">Ecological Security Dashboard</p>
+    </header>
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-6">
+            <div class="input-group shadow-sm rounded-pill overflow-hidden bg-white">
+                <input id="taxonInput" class="form-control border-0 ps-4 py-3" 
+                       placeholder="Search Species (e.g., Python reticulatus)" value="Varanus salvator">
+                <button class="btn btn-primary px-4 fw-bold" onclick="fetchData()">ANALYZE</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="loader" id="loader"></div>
+
+    <div id="resultsArea" style="display:none;">
+
+        <!-- COMPLIMENTARY MUTED HERO BANNER -->
+        <div class="row">
+            <div class="col-12">
+                <div id="heroBackground" class="hero-section shadow-sm">
+                    <img id="speciesImage" src="">
+                    <div class="hero-overlay"></div>
+
+                    <div style="position:relative; z-index:1;">
+                        <h1 class="display-3 fw-bold mb-2" id="dispTaxonHeader" style="text-shadow: 2px 2px 8px rgba(0,0,0,0.4);">Scientific Name</h1>
+                        <p class="h3 fw-light" id="dispCommonName" style="color: var(--beige-light); opacity: 0.95;">Common Name</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Sidebar Info -->
+            <div class="col-md-4">
+                <div class="card p-4 h-100">
+                    <h6 class="text-muted text-uppercase fw-bold small mb-3" style="letter-spacing: 1px;">Classification</h6>
+                    <hr>
+                    <p class="mb-2"><strong>Taxon:</strong> <span id="dispTaxon" class="fst-italic"></span></p>
+                    <p class="mb-2"><strong>Family:</strong> <span id="dispFamily"></span></p>
+                    <p class="mb-2"><strong>Order:</strong> <span id="dispOrder"></span></p>
+                    <p class="mb-2"><strong>Regions:</strong> <span id="dispRegions"></span></p>
+                    <p class="mb-0"><strong>Hub:</strong> <span id="dispCountry" class="fw-bold text-primary"></span></p>
+                </div>
+            </div>
+
+            <!-- Risk Score -->
+            <div class="col-md-4">
+                <div class="card p-4 h-100 text-center d-flex flex-column justify-content-center">
+                    <h6 class="text-muted text-uppercase fw-bold small mb-3" style="letter-spacing: 1px;">Risk Status</h6>
+                    <h1 id="dispScore" class="display-2 fw-bold mb-0">0.0</h1>
+                    <p id="dispRiskText" class="h6 mt-2 text-uppercase" style="letter-spacing: 2px;">Calculating…</p>
+                </div>
+            </div>
+
+            <!-- AI Summary -->
+            <div class="col-md-4">
+                <div class="card p-4 h-100 border-0" style="background-color: var(--beige-dark);">
+                    <h6 class="text-uppercase fw-bold small mb-3" style="color: var(--coffee-dark); letter-spacing: 1px;">AI Risk Analysis</h6>
+                    <hr style="border-top-color: rgba(0,0,0,0.1);">
+                    <p id="dispExplanation" class="lh-base" style="color: #4a4138; font-size: 0.95rem;">Preparing assessment...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Heatmap -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card p-4">
+                    <h5 class="fw-light mb-4" style="color: var(--coffee-dark);">International Trade Distribution</h5>
+                    <div id="map-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESOURCES FOOTER -->
+    <div class="row mt-5 pb-5">
+        <div class="col-12 text-center">
+            <div class="card p-4 border-0" style="background-color: var(--beige-dark);">
+                <h6 class="text-uppercase fw-bold small mb-3" style="color: var(--coffee-dark); letter-spacing: 2px;">Global Conservation Resources</h6>
+                <div class="d-flex flex-wrap justify-content-center gap-4 mt-2">
+                    <a href="https://cites.org" target="_blank" class="footer-link">CITES Official</a>
+                    <a href="https://www.iucnredlist.org" target="_blank" class="footer-link">IUCN Red List</a>
+                    <a href="https://www.traffic.org" target="_blank" class="footer-link">TRAFFIC (Trade Monitoring)</a>
+                    <a href="https://www.worldwildlife.org" target="_blank" class="footer-link">WWF Endangered Species</a>
+                </div>
+                <p class="text-muted mt-4 small fst-italic">Access these platforms for extensive data on trade regulations and species conservation status.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="errorArea" class="alert alert-warning text-center mt-3 border-0 rounded-pill shadow-sm" style="display:none; background-color: var(--beige-dark); color: var(--coffee-dark);"></div>
+</div>
+
+<script>
+const speciesImages = {
+    "varanus salvator": "https://images.unsplash.com/photo-1629117620311-6679549925e0?auto=format&fit=crop&q=80&w=1600",
+    "python bivittatus": "https://images.unsplash.com/photo-1531386151447-fd762710f224?auto=format&fit=crop&q=80&w=1600",
+    "crocodylus porosus": "https://images.unsplash.com/photo-1581896740682-628f804245c1?auto=format&fit=crop&q=80&w=1600",
+    "crocodylus niloticus": "https://images.unsplash.com/photo-1613143431320-94a82156a5c1?auto=format&fit=crop&q=80&w=1600",
+    "python reticulatus": "https://images.unsplash.com/photo-1613580053914-df090c25608d?auto=format&fit=crop&q=80&w=1600",
+    "alligator mississippiensis": "https://images.unsplash.com/photo-1601000940428-c11812839958?auto=format&fit=crop&q=80&w=1600"
+};
+
+// Hardcoded regional data for the target species
+const hardcodedRegions = {
+    "varanus salvator": ["South Asia", "Southeast Asia"],
+    "python bivittatus": ["Southeast Asia", "India", "Myanmar"],
+    "crocodylus porosus": ["Southeast Asia", "Northern Australia", "India"],
+    "crocodylus niloticus": ["Sub-Saharan Africa", "Madagascar"],
+    "python reticulatus": ["Southeast Asia", "South Asia"],
+    "alligator mississippiensis": ["Southeastern USA"]
+};
+
+async function fetchData() {
+    const taxonInput = document.getElementById('taxonInput').value.trim();
+    const heroImg = document.getElementById('speciesImage');
+    const heroDiv = document.getElementById('heroBackground');
+    const loader = document.getElementById('loader');
+    const results = document.getElementById('resultsArea');
+    const errorArea = document.getElementById('errorArea');
+
+    results.style.display = 'none';
+    errorArea.style.display = 'none';
+    loader.style.display = 'block';
+
+    try {
+        const [dataRes, factsRes] = await Promise.all([
+            fetch(`http://127.0.0.1:5000/get_animal_data?taxon=${taxonInput}`),
+            fetch(`http://127.0.0.1:5000/get_species_facts?taxon=${taxonInput}`)
+        ]);
+
+        const data = await dataRes.json();
+        const facts = await factsRes.json();
+        loader.style.display = 'none';
+
+        if (data.error) return showError(data.error);
+
+        // --- THEME & IMAGE LOGIC ---
+        const key = data.basic_info.Taxon.toLowerCase().trim();
+        const score = parseFloat(data.basic_info.poaching_risk_score);
+        
+        // Muted Complimentary Shades for Banner
+        if (score > 0.7) {
+            heroDiv.style.backgroundColor = "var(--accent-clay)"; 
+        } else if (score > 0.4) {
+            heroDiv.style.backgroundColor = "var(--coffee-medium)"; 
+        } else {
+            heroDiv.style.backgroundColor = "var(--accent-sage)"; 
+        }
+
+        if (speciesImages[key]) {
+            heroImg.src = speciesImages[key];
+            heroImg.onload = () => { heroImg.style.display = 'block'; };
+        } else {
+            heroImg.style.display = 'none';
+        }
+
+        // UI Text Updates
+        document.getElementById('dispTaxonHeader').innerText = data.basic_info.Taxon;
+        document.getElementById('dispCommonName').innerText = facts.common_name || "Species Summary";
+        document.getElementById('dispTaxon').innerText = data.basic_info.Taxon;
+        document.getElementById('dispFamily').innerText = data.basic_info.Family || "N/A";
+        document.getElementById('dispOrder').innerText = data.basic_info.Order || "N/A";
+        
+        // Handle regional data: check backend facts first, then fallback to hardcoded map
+        let regionDisplay = "N/A";
+        if (facts.regions && facts.regions.length > 0) {
+            regionDisplay = facts.regions.join(", ");
+        } else if (hardcodedRegions[key]) {
+            regionDisplay = hardcodedRegions[key].join(", ");
+        }
+        document.getElementById('dispRegions').innerText = regionDisplay;
+        
+        document.getElementById('dispCountry').innerText = data.basic_info.likely_poaching_country;
+        document.getElementById('dispExplanation').innerText = data.risk_explanation;
+
+        // Risk Score Styling
+        const scoreEl = document.getElementById('dispScore');
+        scoreEl.innerText = score.toFixed(2);
+        scoreEl.className = "display-2 fw-bold " + (score > 0.7 ? "risk-high" : score > 0.4 ? "risk-med" : "risk-low");
+        document.getElementById('dispRiskText').innerText = 
+            score > 0.7 ? "HIGH VULNERABILITY" : score > 0.4 ? "MODERATE PRESSURE" : "LOW RISK STATUS";
+
+        drawMap(data.heatmap_data);
+        results.style.display = 'block';
+
+    } catch (err) {
+        loader.style.display = 'none';
+        showError("The inspector cannot reach the server. Ensure app.py is running on port 5000.");
+    }
+}
+
+function drawMap(data) {
+    // Earth-Tones Map Scale
+    const colorscaleValue = [
+        [0, '#e8e2d6'],
+        [0.5, '#b5836d'],
+        [1, '#594a3e']
+    ];
+
+    Plotly.newPlot("map-container", [{
+        type: "choropleth",
+        locationmode: "country names",
+        locations: data.map(d => d.Exporter),
+        z: data.map(d => d.export_qty_log),
+        colorscale: colorscaleValue,
+        reversescale: false,
+        marker: { line: { color: '#ffffff', width: 0.5 } },
+        colorbar: { 
+            thickness: 12, 
+            title: { text: 'Log Vol', font: { color: '#594a3e', size: 10 } },
+            tickfont: { size: 9, color: '#594a3e' }
+        }
+    }], { 
+        margin: { t:0, b:0, l:0, r:0 },
+        geo: { 
+            projection: { type: 'mercator' },
+            bgcolor: 'rgba(0,0,0,0)',
+            showlakes: true,
+            lakecolor: '#ffffff',
+            showcoastlines: true,
+            coastlinecolor: 'rgba(89, 74, 62, 0.2)'
+        } 
+    });
+}
+
+function showError(msg) {
+    const e = document.getElementById("errorArea");
+    e.innerText = msg;
+    e.style.display = "block";
+}
+</script>
+
+</body>
+</html>

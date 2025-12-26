@@ -1,0 +1,13 @@
+# Ignore Secrets
+.env
+
+# Ignore Heavy Data
+*.csv
+
+# Ignore One-time Scripts
+upload_to_db.py
+
+# Ignore Python junk files
+__pycache__/
+*.pyc
+venv/
